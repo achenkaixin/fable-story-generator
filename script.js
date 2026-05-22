@@ -558,3 +558,4 @@ ${this.summaryContent.textContent}
 
 // 初始化应用
 const fableGenerator = new FableGenerator();
+
