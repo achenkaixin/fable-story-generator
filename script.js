@@ -302,26 +302,27 @@ class FableGenerator {
         return localStorage.getItem('fableAuthenticated') === 'true';
     }
 
-    async callAIAPI(concept) {
-        const authType = localStorage.getItem('fableAuthType');
-        let authCode = null;
-        if (authType === 'code') {
-            authCode = localStorage.getItem('verifiedCode');
-            if (!authCode) {
-                throw new Error('未找到授权码，请重新验证');
-            }
-        } else if (authType === 'trial') {
-            // 试用模式：后端需要识别特殊授权码？为了简单，我们仍然传递一个固定试用码，或者不传授权码
-            // 但后端已经实现了授权码表，没有试用码会报无效。因此需要后端支持一个特殊的“试用”授权码。
-            // 更简单的做法：试用模式不调用后端，而是使用前端模拟数据（之前的模拟故事）。但是用户要求用真AI？
-            // 根据需求，免费试用应该也调用真实AI。所以需要后端支持一个通用试用码（如 "FREE_TRIAL"），
-            // 并且该授权码在 auth_codes 表中总次数为 2，用完即止。
-            // 为简化，我假设你已经在 Supabase 的 auth_codes 表中添加了一个 code = "FREE_TRIAL" 的记录，total_quota=2，used_count 由后端管理。
-            // 如果你没有添加，试用会失败。因此需要你手动添加该记录到 Supabase。
-            authCode = "FREE_TRIAL";
-        } else {
-            throw new Error('未知的认证类型');
+   async callAIAPI(concept) {
+    const authType = localStorage.getItem('fableAuthType');
+    let authCode = null;
+    if (authType === 'code') {
+        authCode = localStorage.getItem('verifiedCode');
+        if (!authCode) {
+            throw new Error('未找到授权码，请重新验证');
         }
+    }
+    // 如果是 trial，authCode 保持 null，后端会识别为试用模式
+
+    const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            userInput: concept,
+            authCode: authCode   // 试用时 authCode 为 null，后端即判断为试用
+        })
+    });
+    // ... 后续不变
+}
 
         const response = await fetch('/api/generate', {
             method: 'POST',
