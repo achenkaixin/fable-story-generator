@@ -1,8 +1,8 @@
-// 班会寓言故事生成器 - 完整版（支持免费试用2次）
+// 班会寓言故事生成器 - 完整版（支持免费试用2次 + 后端次数限制）
 class FableGenerator {
     constructor() {
         this.initializeElements();
-      this.verifyBtn.addEventListener('click', () => this.verifyAuthCode());
+        this.bindEvents();
         this.checkAuthStatus();
         this.loadHistory();
         this.setupEducationTheme();
@@ -77,15 +77,10 @@ class FableGenerator {
         this.closeSettings.addEventListener('click', () => this.hideSettings());
 
         this.historyModal.addEventListener('click', (e) => {
-            if (e.target === this.historyModal) {
-                this.hideHistory();
-            }
+            if (e.target === this.historyModal) this.hideHistory();
         });
-
         this.settingsModal.addEventListener('click', (e) => {
-            if (e.target === this.settingsModal) {
-                this.hideSettings();
-            }
+            if (e.target === this.settingsModal) this.hideSettings();
         });
 
         // 设置变更事件
@@ -112,85 +107,63 @@ class FableGenerator {
         }
     }
 
-async verifyAuthCode() {
-    const code = this.authCode.value.trim();
-    if (!code) {
-        this.showNotification('❌ 请输入授权码', 'error');
-        return;
-    }
-
-    try {
-        // 显示加载中提示
-        this.showNotification('正在验证...', 'info');
-        
-        const response = await fetch('/api/verifyCode', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: code })
-        });
-
-        if (!response.ok) {
-            // 处理非 2xx HTTP 状态码
-            let errorMsg = `验证失败 (${response.status})`;
-            try {
-                const errorData = await response.json();
-                errorMsg = errorData.error || errorMsg;
-            } catch(e) {}
-            this.showNotification(`❌ ${errorMsg}`, 'error');
+    async verifyAuthCode() {
+        const code = this.authCode.value.trim();
+        if (!code) {
+            this.showNotification('❌ 请输入授权码', 'error');
             return;
         }
 
-        const data = await response.json();
-        console.log('验证响应:', data); // 调试输出
+        try {
+            this.showNotification('正在验证...', 'info');
+            const response = await fetch('/api/verifyCode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code })
+            });
 
-        if (data.valid === true) {
-            // 授权码有效
-            localStorage.setItem('fableAuthenticated', 'true');
-            localStorage.setItem('verifiedCode', code);
-            localStorage.setItem('fableAuthType', 'code');
-            localStorage.removeItem('fableTrialCount');
-            this.checkAuthStatus();
-            this.showNotification('✅ 授权码验证成功！');
-        } else {
-            // 授权码无效
-            this.showNotification('❌ 授权码无效，请重试', 'error');
+            if (!response.ok) {
+                let errorMsg = `验证失败 (${response.status})`;
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.error || errorMsg;
+                } catch(e) {}
+                this.showNotification(`❌ ${errorMsg}`, 'error');
+                return;
+            }
+
+            const data = await response.json();
+            console.log('验证响应:', data);
+            if (data.valid === true) {
+                localStorage.setItem('fableAuthenticated', 'true');
+                localStorage.setItem('verifiedCode', code);
+                localStorage.setItem('fableAuthType', 'code');
+                localStorage.removeItem('fableTrialCount');
+                this.checkAuthStatus();
+                this.showNotification('✅ 授权码验证成功！');
+            } else {
+                this.showNotification('❌ 授权码无效，请重试', 'error');
+            }
+        } catch (error) {
+            console.error('验证异常:', error);
+            this.showNotification(`❌ 网络错误：${error.message}`, 'error');
         }
-    } catch (error) {
-        console.error('验证异常:', error);
-        this.showNotification(`❌ 网络错误：${error.message}`, 'error');
     }
-}
 
-        const data = await response.json();
-        if (data.valid) {
-            localStorage.setItem('fableAuthenticated', 'true');
-            localStorage.setItem('verifiedCode', code);
-            localStorage.setItem('fableAuthType', 'code');
-            localStorage.removeItem('fableTrialCount');
-            this.checkAuthStatus();
-            this.showNotification('✅ 授权码验证成功！');
-        } else {
-            this.showNotification('❌ 授权码无效，请重试', 'error');
+    useFreeTrial() {
+        if (this.trialCount >= 2) {
+            this.showNotification('❌ 免费试用次数已用完（2次），请购买授权码', 'error');
+            return;
         }
-    } catch (error) {
-        console.error('验证失败:', error);
-        this.showNotification(`❌ ${error.message}`, 'error');
-    }
-}
- useFreeTrial() {
-    if (this.trialCount >= 2) {
-        this.showNotification('❌ 免费试用次数已用完（2次），请购买授权码', 'error');
-        return;
-    }
 
-    this.trialCount++;
-    localStorage.setItem('fableTrialCount', this.trialCount.toString());
-    localStorage.setItem('fableAuthenticated', 'true');
-    localStorage.setItem('fableAuthType', 'trial');
-    localStorage.removeItem('verifiedCode');  // 清除可能残留的授权码
-    this.checkAuthStatus();
-    this.showNotification(`✅ 免费试用 (${this.trialCount}/2) 剩余 ${2 - this.trialCount} 次`);
-}
+        this.trialCount++;
+        localStorage.setItem('fableTrialCount', this.trialCount.toString());
+        localStorage.setItem('fableAuthenticated', 'true');
+        localStorage.setItem('fableAuthType', 'trial');
+        localStorage.removeItem('verifiedCode');
+        this.checkAuthStatus();
+        this.showNotification(`✅ 免费试用 (${this.trialCount}/2) 剩余 ${2 - this.trialCount} 次`);
+    }
 
     clearAuth() {
         localStorage.removeItem('fableAuthenticated');
@@ -238,25 +211,11 @@ async verifyAuthCode() {
     applyTheme() {
         const theme = this.themeSelect.value;
         const root = document.documentElement;
-
         const themes = {
-            blue: {
-                '--primary-color': '#4A6FA5',
-                '--secondary-color': '#6C8EBF',
-                '--accent-color': '#87B7E8'
-            },
-            green: {
-                '--primary-color': '#4CAF50',
-                '--secondary-color': '#66BB6A',
-                '--accent-color': '#81C784'
-            },
-            purple: {
-                '--primary-color': '#9C27B0',
-                '--secondary-color': '#BA68C8',
-                '--accent-color': '#CE93D8'
-            }
+            blue: { '--primary-color': '#4A6FA5', '--secondary-color': '#6C8EBF', '--accent-color': '#87B7E8' },
+            green: { '--primary-color': '#4CAF50', '--secondary-color': '#66BB6A', '--accent-color': '#81C784' },
+            purple: { '--primary-color': '#9C27B0', '--secondary-color': '#BA68C8', '--accent-color': '#CE93D8' }
         };
-
         const selectedTheme = themes[theme];
         Object.keys(selectedTheme).forEach(key => {
             root.style.setProperty(key, selectedTheme[key]);
@@ -266,13 +225,7 @@ async verifyAuthCode() {
     applyFontSize() {
         const fontSize = this.fontSizeSelect.value;
         const root = document.documentElement;
-
-        const fontSizes = {
-            small: '14px',
-            medium: '16px',
-            large: '18px'
-        };
-
+        const fontSizes = { small: '14px', medium: '16px', large: '18px' };
         root.style.fontSize = fontSizes[fontSize];
     }
 
@@ -288,13 +241,12 @@ async verifyAuthCode() {
             return;
         }
 
-        // 检查试用次数是否已用完
         const authType = localStorage.getItem('fableAuthType');
         if (authType === 'trial') {
             const remaining = 2 - this.trialCount;
             if (remaining <= 0) {
                 this.showNotification('❌ 免费试用次数已用完，请购买授权码', 'error');
-                this.clearAuth(); // 清除认证，让用户重新购买
+                this.clearAuth();
                 return;
             }
         }
@@ -309,7 +261,6 @@ async verifyAuthCode() {
                 this.saveToHistory(concept, response);
             }
 
-            // 如果是试用用户，生成成功后再次检查次数（实际上 useFreeTrial 时已经增加，这里无需额外操作，但为了准确，重新获取）
             if (authType === 'trial') {
                 this.trialCount = this.getTrialCount();
                 const remaining = 2 - this.trialCount;
@@ -335,33 +286,20 @@ async verifyAuthCode() {
         return localStorage.getItem('fableAuthenticated') === 'true';
     }
 
-   async callAIAPI(concept) {
-    const authType = localStorage.getItem('fableAuthType');
-    let authCode = null;
-    if (authType === 'code') {
-        authCode = localStorage.getItem('verifiedCode');
-        if (!authCode) {
-            throw new Error('未找到授权码，请重新验证');
+    async callAIAPI(concept) {
+        const authType = localStorage.getItem('fableAuthType');
+        let authCode = null;
+        if (authType === 'code') {
+            authCode = localStorage.getItem('verifiedCode');
+            if (!authCode) {
+                throw new Error('未找到授权码，请重新验证');
+            }
         }
-    }
-    // 如果是 trial，authCode 保持 null，后端会识别为试用模式
-
-    const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            userInput: concept,
-            authCode: authCode   // 试用时 authCode 为 null，后端即判断为试用
-        })
-    });
-    // ... 后续不变
-}
+        // 试用时 authCode = null
 
         const response = await fetch('/api/generate', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 userInput: concept,
                 authCode: authCode
@@ -373,9 +311,7 @@ async verifyAuthCode() {
             try {
                 const errorData = await response.json();
                 errorMessage = errorData.error || errorMessage;
-            } catch (e) {
-                // 忽略解析错误
-            }
+            } catch (e) {}
             throw new Error(errorMessage);
         }
 
@@ -384,11 +320,9 @@ async verifyAuthCode() {
     }
 
     displayResult(response) {
-        // 计算字数
         const wordCount = response.fable.length;
         this.wordCount.textContent = `约 ${wordCount} 字`;
 
-        // 添加动画效果
         this.storyContent.style.opacity = '0';
         this.questionsContent.style.opacity = '0';
         this.discussionContent.style.opacity = '0';
@@ -396,13 +330,10 @@ async verifyAuthCode() {
 
         setTimeout(() => {
             this.storyContent.innerHTML = `<p>${response.fable}</p>`;
-            this.questionsContent.innerHTML = response.questions.map(q =>
-                `<p>• ${q}</p>`
-            ).join('');
+            this.questionsContent.innerHTML = response.questions.map(q => `<p>• ${q}</p>`).join('');
             this.discussionContent.innerHTML = `<p>${response.discussion}</p>`;
             this.summaryContent.innerHTML = `<p>${response.summary}</p>`;
 
-            // 淡入动画
             this.storyContent.style.opacity = '1';
             this.questionsContent.style.opacity = '1';
             this.discussionContent.style.opacity = '1';
@@ -420,14 +351,10 @@ async verifyAuthCode() {
             discussion: response.discussion,
             summary: response.summary,
             timestamp: new Date().toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
             })
         };
-
         history.unshift(newItem);
         localStorage.setItem('fableHistory', JSON.stringify(history));
         this.updateHistoryDisplay();
@@ -439,7 +366,6 @@ async verifyAuthCode() {
     }
 
     loadHistory() {
-        const history = this.getHistory();
         this.updateHistoryDisplay();
     }
 
@@ -457,21 +383,7 @@ async verifyAuthCode() {
                 </div>
             </div>
         `).join('');
-
         this.historyListModal.innerHTML = this.historyList.innerHTML;
-    }
-
-    showHistory() {
-        this.historySidebar.classList.add('open');
-    }
-
-    hideHistory() {
-        this.historySidebar.classList.remove('open');
-        this.historyModal.style.display = 'none';
-    }
-
-    toggleHistorySidebar() {
-        this.historySidebar.classList.toggle('open');
     }
 
     loadHistoryItem(id) {
@@ -509,24 +421,7 @@ async verifyAuthCode() {
     }
 
     copyToClipboard() {
-        const content = `
-📚 班会寓言故事生成器 - 教学材料
-
-【寓言故事】
-${this.storyContent.textContent}
-
-【课堂提问】
-${this.questionsContent.textContent}
-
-【小组讨论话题】
-${this.discussionContent.textContent}
-
-【老师总结语】
-${this.summaryContent.textContent}
-
-生成时间：${new Date().toLocaleString()}
-        `;
-
+        const content = `📚 班会寓言故事生成器 - 教学材料\n\n【寓言故事】\n${this.storyContent.textContent}\n\n【课堂提问】\n${this.questionsContent.textContent}\n\n【小组讨论话题】\n${this.discussionContent.textContent}\n\n【老师总结语】\n${this.summaryContent.textContent}\n\n生成时间：${new Date().toLocaleString()}`;
         navigator.clipboard.writeText(content).then(() => {
             this.showNotification('✅ 教学材料已复制到剪贴板');
         }).catch(() => {
@@ -563,7 +458,6 @@ ${this.summaryContent.textContent}
         notification.className = `notification ${type}`;
         notification.innerHTML = `<i class="fas fa-info-circle"></i> ${message}`;
         document.body.appendChild(notification);
-
         setTimeout(() => {
             notification.style.opacity = '0';
             setTimeout(() => notification.remove(), 300);
@@ -577,7 +471,6 @@ ${this.summaryContent.textContent}
             { position: 'bottom-left', emoji: '📖' },
             { position: 'bottom-right', emoji: '✏️' }
         ];
-
         decorations.forEach(deco => {
             const element = document.createElement('div');
             element.className = `education-decoration ${deco.position}`;
@@ -589,4 +482,3 @@ ${this.summaryContent.textContent}
 
 // 初始化应用
 const fableGenerator = new FableGenerator();
-
