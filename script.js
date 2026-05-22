@@ -144,23 +144,20 @@ class FableGenerator {
     }
 }
 
-    useFreeTrial() {
-        // 检查是否还有试用次数
-        if (this.trialCount >= 2) {
-            this.showNotification('❌ 免费试用次数已用完（2次），请购买授权码', 'error');
-            return;
-        }
-
-        // 增加试用次数
-        this.trialCount++;
-        localStorage.setItem('fableTrialCount', this.trialCount.toString());
-        localStorage.setItem('fableAuthenticated', 'true');
-        localStorage.setItem('fableAuthType', 'trial');
-        // 清除可能存在的授权码
-        localStorage.removeItem('verifiedCode');
-        this.checkAuthStatus();
-        this.showNotification(`✅ 免费试用 (${this.trialCount}/2) 剩余 ${2 - this.trialCount} 次`);
+ useFreeTrial() {
+    if (this.trialCount >= 2) {
+        this.showNotification('❌ 免费试用次数已用完（2次），请购买授权码', 'error');
+        return;
     }
+
+    this.trialCount++;
+    localStorage.setItem('fableTrialCount', this.trialCount.toString());
+    localStorage.setItem('fableAuthenticated', 'true');
+    localStorage.setItem('fableAuthType', 'trial');
+    localStorage.removeItem('verifiedCode');  // 清除可能残留的授权码
+    this.checkAuthStatus();
+    this.showNotification(`✅ 免费试用 (${this.trialCount}/2) 剩余 ${2 - this.trialCount} 次`);
+}
 
     clearAuth() {
         localStorage.removeItem('fableAuthenticated');
