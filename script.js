@@ -112,7 +112,7 @@ class FableGenerator {
         }
     }
 
-    async verifyAuthCode() {
+ async verifyAuthCode() {
     const code = this.authCode.value.trim();
     if (!code) {
         this.showNotification('❌ 请输入授权码', 'error');
@@ -120,12 +120,21 @@ class FableGenerator {
     }
 
     try {
-        // 向后端验证授权码
         const response = await fetch('/api/verifyCode', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: code })
         });
+
+        // 如果响应状态不是 2xx，则抛出错误
+        if (!response.ok) {
+            let errorMsg = `请求失败 (${response.status})`;
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.error || errorMsg;
+            } catch(e) {}
+            throw new Error(errorMsg);
+        }
 
         const data = await response.json();
         if (data.valid) {
@@ -140,10 +149,9 @@ class FableGenerator {
         }
     } catch (error) {
         console.error('验证失败:', error);
-        this.showNotification('❌ 网络错误，请稍后重试', 'error');
+        this.showNotification(`❌ ${error.message}`, 'error');
     }
 }
-
  useFreeTrial() {
     if (this.trialCount >= 2) {
         this.showNotification('❌ 免费试用次数已用完（2次），请购买授权码', 'error');
