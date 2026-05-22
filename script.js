@@ -2,7 +2,7 @@
 class FableGenerator {
     constructor() {
         this.initializeElements();
-        this.bindEvents();
+      this.verifyBtn.addEventListener('click', () => this.verifyAuthCode());
         this.checkAuthStatus();
         this.loadHistory();
         this.setupEducationTheme();
