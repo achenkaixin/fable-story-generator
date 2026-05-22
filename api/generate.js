@@ -1,9 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+import crypto from 'crypto';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -11,40 +7,110 @@ export default async function handler(req, res) {
   }
 
   const { userInput, authCode } = req.body;
-
   if (!userInput) {
-    return res.status(400).json({ error: '请输入道理或班级事件' });
-  }
-  if (!authCode) {
-    return res.status(400).json({ error: '请先验证授权码' });
+    return res.status(400).json({ error: 'Missing userInput' });
   }
 
-  // 1. 查询授权码剩余次数
-  const { data: codeData, error: queryError } = await supabase
-    .from('auth_codes')
-    .select('code, total_quota, used_count')
-    .eq('code', authCode)
-    .single();
-
-  if (queryError || !codeData) {
-    console.error('授权码查询失败:', queryError);
-    return res.status(401).json({ error: '无效的授权码' });
+  // 初始化 Supabase 客户端
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Missing Supabase env variables');
+    return res.status(500).json({ error: 'Server config error' });
   }
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const remaining = codeData.total_quota - codeData.used_count;
-  if (remaining <= 0) {
-    return res.status(403).json({ error: '此授权码次数已用完，请联系购买新码' });
+  // 判断是否为免费试用模式（没有提供 authCode）
+  const isTrial = !authCode;
+
+  if (!isTrial) {
+    // 授权码模式（付费用户）
+    const { data: codeData, error: queryError } = await supabase
+      .from('auth_codes')
+      .select('code, total_quota, used_count')
+      .eq('code', authCode)
+      .maybeSingle();
+
+    if (queryError || !codeData) {
+      console.error('授权码查询失败:', queryError);
+      return res.status(401).json({ error: '无效的授权码' });
+    }
+
+    const remaining = codeData.total_quota - codeData.used_count;
+    if (remaining <= 0) {
+      return res.status(403).json({ error: '此授权码次数已用完，请联系购买新码' });
+    }
+
+    // 调用 DeepSeek API 生成故事（复用通用函数）
+    const result = await generateStory(userInput);
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    // 更新授权码使用次数
+    const { error: updateError } = await supabase
+      .from('auth_codes')
+      .update({ used_count: codeData.used_count + 1 })
+      .eq('code', authCode);
+    if (updateError) console.error('更新次数失败:', updateError);
+
+    return res.status(200).json(result);
+  } else {
+    // 免费试用模式：基于设备标识限制
+    // 获取真实 IP（Vercel 环境下使用 x-forwarded-for）
+    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || '';
+    const userAgent = req.headers['user-agent'] || '';
+    const deviceId = crypto.createHash('md5').update(ip + userAgent).digest('hex');
+
+    // 查询该设备的试用记录
+    let { data: trialData, error: trialError } = await supabase
+      .from('trial_usage')
+      .select('used_count')
+      .eq('device_id', deviceId)
+      .maybeSingle();
+
+    if (trialError && trialError.code !== 'PGRST116') { // PGRST116 表示无记录，不是错误
+      console.error('查询试用记录失败:', trialError);
+      return res.status(500).json({ error: '试用检查失败' });
+    }
+
+    const usedCount = trialData ? trialData.used_count : 0;
+    if (usedCount >= 2) {
+      return res.status(403).json({ error: '免费试用次数已用完（2次），请购买授权码' });
+    }
+
+    // 调用 DeepSeek API 生成故事
+    const result = await generateStory(userInput);
+    if (result.error) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    // 更新试用次数
+    if (trialData) {
+      await supabase
+        .from('trial_usage')
+        .update({ used_count: usedCount + 1, updated_at: new Date() })
+        .eq('device_id', deviceId);
+    } else {
+      await supabase
+        .from('trial_usage')
+        .insert({ device_id: deviceId, used_count: 1 });
+    }
+
+    return res.status(200).json(result);
   }
+}
 
-  // 2. 调用 DeepSeek API
+// 通用的故事生成函数（调用 DeepSeek API）
+async function generateStory(userInput) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: '服务器配置错误：缺少 API 密钥' });
+    return { error: 'Missing DeepSeek API key' };
   }
 
   const systemPrompt = `你是一位给小学生讲道理的寓言作家。根据用户输入的班级事件，创作一个直接围绕该事件的寓言故事。
 要求：
-- 故事必须紧扣用户输入的主题（例如“不想值日”），不要偏离到其他道理。
+- 故事必须紧扣用户输入的主题，不要偏离。
 - 角色可以是学生、老师或教室里的物品。
 - 故事长度400-600字，语言简单，适合小学生。
 - 输出格式：
@@ -80,29 +146,16 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('DeepSeek API 错误:', response.status, errorText);
-      return res.status(500).json({ error: 'AI 服务出错，请稍后再试' });
+      console.error('DeepSeek API error:', response.status, errorText);
+      return { error: 'AI service error' };
     }
 
     const data = await response.json();
     const content = data.choices[0].message.content;
-    const result = parseResponse(content);
-
-    // 3. 更新使用次数（生成成功后）
-    const { error: updateError } = await supabase
-      .from('auth_codes')
-      .update({ used_count: codeData.used_count + 1 })
-      .eq('code', authCode);
-
-    if (updateError) {
-      console.error('更新次数失败:', updateError);
-      // 不返回错误，只记录日志
-    }
-
-    return res.status(200).json(result);
+    return parseResponse(content);
   } catch (error) {
-    console.error('处理错误:', error);
-    return res.status(500).json({ error: '服务器内部错误' });
+    console.error('Handler error:', error);
+    return { error: 'Internal server error' };
   }
 }
 
