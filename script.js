@@ -112,7 +112,7 @@ class FableGenerator {
         }
     }
 
- async verifyAuthCode() {
+async verifyAuthCode() {
     const code = this.authCode.value.trim();
     if (!code) {
         this.showNotification('❌ 请输入授权码', 'error');
@@ -120,21 +120,46 @@ class FableGenerator {
     }
 
     try {
+        // 显示加载中提示
+        this.showNotification('正在验证...', 'info');
+        
         const response = await fetch('/api/verifyCode', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: code })
         });
 
-        // 如果响应状态不是 2xx，则抛出错误
         if (!response.ok) {
-            let errorMsg = `请求失败 (${response.status})`;
+            // 处理非 2xx HTTP 状态码
+            let errorMsg = `验证失败 (${response.status})`;
             try {
                 const errorData = await response.json();
                 errorMsg = errorData.error || errorMsg;
             } catch(e) {}
-            throw new Error(errorMsg);
+            this.showNotification(`❌ ${errorMsg}`, 'error');
+            return;
         }
+
+        const data = await response.json();
+        console.log('验证响应:', data); // 调试输出
+
+        if (data.valid === true) {
+            // 授权码有效
+            localStorage.setItem('fableAuthenticated', 'true');
+            localStorage.setItem('verifiedCode', code);
+            localStorage.setItem('fableAuthType', 'code');
+            localStorage.removeItem('fableTrialCount');
+            this.checkAuthStatus();
+            this.showNotification('✅ 授权码验证成功！');
+        } else {
+            // 授权码无效
+            this.showNotification('❌ 授权码无效，请重试', 'error');
+        }
+    } catch (error) {
+        console.error('验证异常:', error);
+        this.showNotification(`❌ 网络错误：${error.message}`, 'error');
+    }
+}
 
         const data = await response.json();
         if (data.valid) {
