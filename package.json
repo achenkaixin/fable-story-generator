@@ -1,0 +1,8 @@
+{
+  "name": "fable-story-generator",
+  "version": "1.0.0",
+  "description": "班会寓言故事生成器",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}
