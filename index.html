@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📚 班会寓言故事生成器 - 教育版</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 授权码验证界面 -->
+        <div id="authSection" class="auth-section">
+            <div class="auth-container">
+                <div class="auth-header">
+                    <h1>📚 班会寓言故事生成器</h1>
+                    <p class="auth-subtitle">教育版 - 授权验证</p>
+                </div>
+
+                <div class="auth-form">
+                    <div class="form-group">
+                        <label for="authCode">授权码</label>
+                        <input
+                            type="text"
+                            id="authCode"
+                            class="auth-input"
+                            placeholder="请输入授权码"
+                            autocomplete="off"
+                        >
+                    </div>
+
+                    <div class="auth-actions">
+                        <button id="verifyBtn" class="btn primary">
+                            <i class="fas fa-check"></i>
+                            验证
+                        </button>
+                        <button id="freeTrialBtn" class="btn secondary">
+                            <i class="fas fa-gift"></i>
+                            免费试用3次
+                        </button>
+                    </div>
+
+                    <div class="auth-info">
+                        <p>💡 提示：联系管理员获取授权码，或使用免费试用功能</p>
+                    </div>
+                </div>
+
+                <div class="auth-footer">
+                    <button id="clearAuthBtn" class="btn small">
+                        <i class="fas fa-eraser"></i>
+                        清除授权
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区（初始隐藏） -->
+        <div id="mainContent" class="main-content" style="display: none;">
+            <!-- 导航栏 -->
+            <header class="navbar">
+                <div class="navbar-brand">
+                    <h1>📚 班会寓言故事生成器</h1>
+                    <span class="subtitle">教育版</span>
+                </div>
+                <nav class="navbar-nav">
+                    <button id="historyBtn" class="nav-btn">
+                        <i class="fas fa-history"></i>
+                        历史记录
+                    </button>
+                    <button id="settingsBtn" class="nav-btn">
+                        <i class="fas fa-cog"></i>
+                        设置
+                    </button>
+                </nav>
+            </header>
+
+            <!-- 主内容区 -->
+            <main class="main-content-inner">
+                <div class="content-grid">
+                    <!-- 输入面板 -->
+                    <section class="input-panel">
+                        <div class="panel-header">
+                            <h2>📝 输入教育主题</h2>
+                            <p class="panel-description">输入道理或班级事件，生成寓言故事和教学材料</p>
+                        </div>
+                        <div class="input-container">
+                            <textarea
+                                id="inputText"
+                                class="input-field"
+                                placeholder="例如：不撒谎、小明忘记值日还推卸责任、团队合作的重要性..."
+                                rows="6"
+                            ></textarea>
+                            <div class="input-actions">
+                                <button id="generateBtn" class="btn primary">
+                                    <span class="btn-icon">✨</span>
+                                    生成寓言故事
+                                </button>
+                                <div class="input-tips">
+                                    <p>💡 提示：支持常见教育主题如：诚实、责任、合作、尊重等</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 输出面板 -->
+                    <section class="output-panel">
+                        <div class="panel-header">
+                            <h2>📚 生成结果</h2>
+                            <div class="panel-actions">
+                                <button id="copyBtn" class="btn">
+                                    <i class="fas fa-copy"></i>
+                                    复制
+                                </button>
+                                <button id="pdfBtn" class="btn">
+                                    <i class="fas fa-file-pdf"></i>
+                                    PDF
+                                </button>
+                                <button id="fullscreenBtn" class="btn">
+                                    <i class="fas fa-expand"></i>
+                                    全屏
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="output-content">
+                            <!-- 故事卡片 -->
+                            <div class="story-card">
+                                <div class="card-header">
+                                    <h3>📖 寓言故事</h3>
+                                    <span class="word-count" id="wordCount">约 0 字</span>
+                                </div>
+                                <div class="card-body story-text" id="storyContent">
+                                    <p class="placeholder">等待生成故事...</p>
+                                </div>
+                            </div>
+
+                            <!-- 教学卡片网格 -->
+                            <div class="teaching-grid">
+                                <div class="teaching-card">
+                                    <div class="card-header">
+                                        <h3>❓ 课堂提问</h3>
+                                        <span class="card-badge">3个问题</span>
+                                    </div>
+                                    <div class="card-body" id="questionsContent">
+                                        <p class="placeholder">等待生成问题...</p>
+                                    </div>
+                                </div>
+
+                                <div class="teaching-card">
+                                    <div class="card-header">
+                                        <h3>🗣️ 小组讨论</h3>
+                                        <span class="card-badge">1个话题</span>
+                                    </div>
+                                    <div class="card-body" id="discussionContent">
+                                        <p class="placeholder">等待生成讨论话题...</p>
+                                    </div>
+                                </div>
+
+                                <div class="teaching-card">
+                                    <div class="card-header">
+                                        <h3>👨‍🏫 老师总结</h3>
+                                        <span class="card-badge">1句总结</span>
+                                    </div>
+                                    <div class="card-body" id="summaryContent">
+                                        <p class="placeholder">等待生成总结...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <!-- 历史记录侧边栏 -->
+            <div id="historySidebar" class="history-sidebar">
+                <div class="sidebar-header">
+                    <h3>📋 历史记录</h3>
+                    <button id="clearAllBtn" class="btn small">
+                        <i class="fas fa-trash"></i>
+                        清空全部
+                    </button>
+                </div>
+                <div id="historyList" class="history-list"></div>
+            </div>
+
+            <!-- 历史记录模态框 -->
+            <div id="historyModal" class="modal history-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>📋 历史记录</h2>
+                        <button class="close-btn" id="closeHistory">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="historyListModal" class="history-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设置模态框 -->
+            <div id="settingsModal" class="modal settings-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>⚙️ 设置</h2>
+                        <button class="close-btn" id="closeSettings">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="settings-form">
+                            <div class="setting-item">
+                                <label>主题颜色</label>
+                                <select id="themeSelect" class="setting-input">
+                                    <option value="blue">专业蓝</option>
+                                    <option value="green">教育绿</option>
+                                    <option value="purple">智慧紫</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label>字体大小</label>
+                                <select id="fontSizeSelect" class="setting-input">
+                                    <option value="small">小</option>
+                                    <option value="medium" selected>中</option>
+                                    <option value="large">大</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <label>自动保存历史</label>
+                                <input type="checkbox" id="autoSaveCheck" class="setting-checkbox" checked>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="script.js"></script>
+    </div>
+</body>
+</html>
