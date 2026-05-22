@@ -113,21 +113,36 @@ class FableGenerator {
     }
 
     async verifyAuthCode() {
-        const code = this.authCode.value.trim();
-        if (!code) {
-            this.showNotification('❌ 请输入授权码', 'error');
-            return;
-        }
-
-        // 注意：授权码的有效性由后端验证，前端只存储
-        localStorage.setItem('fableAuthenticated', 'true');
-        localStorage.setItem('verifiedCode', code);
-        localStorage.setItem('fableAuthType', 'code'); // 标记为正式用户
-        localStorage.removeItem('fableTrialCount'); // 清除试用次数
-        this.trialCount = 0;
-        this.checkAuthStatus();
-        this.showNotification('✅ 授权码已保存，开始无限次使用！');
+    const code = this.authCode.value.trim();
+    if (!code) {
+        this.showNotification('❌ 请输入授权码', 'error');
+        return;
     }
+
+    try {
+        // 向后端验证授权码
+        const response = await fetch('/api/verifyCode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: code })
+        });
+
+        const data = await response.json();
+        if (data.valid) {
+            localStorage.setItem('fableAuthenticated', 'true');
+            localStorage.setItem('verifiedCode', code);
+            localStorage.setItem('fableAuthType', 'code');
+            localStorage.removeItem('fableTrialCount');
+            this.checkAuthStatus();
+            this.showNotification('✅ 授权码验证成功！');
+        } else {
+            this.showNotification('❌ 授权码无效，请重试', 'error');
+        }
+    } catch (error) {
+        console.error('验证失败:', error);
+        this.showNotification('❌ 网络错误，请稍后重试', 'error');
+    }
+}
 
     useFreeTrial() {
         // 检查是否还有试用次数
