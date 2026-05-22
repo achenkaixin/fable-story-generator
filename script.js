@@ -7,7 +7,7 @@ class FableGenerator {
         this.loadHistory();
         this.setupEducationTheme();
         this.applySettings();
-        this.trialCount = this.getTrialCount();
+        this.trialCount = this.getTrialCount();  // 仅用于 useFreeTrial 中快速检查
     }
 
     initializeElements() {
@@ -139,6 +139,7 @@ class FableGenerator {
                 localStorage.setItem('verifiedCode', code);
                 localStorage.setItem('fableAuthType', 'code');
                 localStorage.removeItem('fableTrialCount');
+                this.trialCount = 0;
                 this.checkAuthStatus();
                 this.showNotification('✅ 授权码验证成功！');
             } else {
@@ -151,18 +152,22 @@ class FableGenerator {
     }
 
     useFreeTrial() {
-        if (this.trialCount >= 2) {
+        // 实时获取当前已使用次数
+        const used = this.getTrialCount();
+        if (used >= 2) {
             this.showNotification('❌ 免费试用次数已用完（2次），请购买授权码', 'error');
             return;
         }
 
-        this.trialCount++;
-        localStorage.setItem('fableTrialCount', this.trialCount.toString());
+        const newUsed = used + 1;
+        localStorage.setItem('fableTrialCount', newUsed.toString());
         localStorage.setItem('fableAuthenticated', 'true');
         localStorage.setItem('fableAuthType', 'trial');
         localStorage.removeItem('verifiedCode');
+        this.trialCount = newUsed;  // 同步内存变量
         this.checkAuthStatus();
-        this.showNotification(`✅ 免费试用 (${this.trialCount}/2) 剩余 ${2 - this.trialCount} 次`);
+        const remaining = 2 - newUsed;
+        this.showNotification(`✅ 免费试用 (${newUsed}/2) 剩余 ${remaining} 次`);
     }
 
     clearAuth() {
@@ -177,7 +182,7 @@ class FableGenerator {
 
     getTrialCount() {
         const count = localStorage.getItem('fableTrialCount');
-        return count ? parseInt(count) : 0;
+        return count ? parseInt(count, 10) : 0;
     }
 
     applySettings() {
@@ -243,7 +248,8 @@ class FableGenerator {
 
         const authType = localStorage.getItem('fableAuthType');
         if (authType === 'trial') {
-            const remaining = 2 - this.trialCount;
+            const used = this.getTrialCount();   // 实时读取
+            const remaining = 2 - used;
             if (remaining <= 0) {
                 this.showNotification('❌ 免费试用次数已用完，请购买授权码', 'error');
                 this.clearAuth();
@@ -262,8 +268,8 @@ class FableGenerator {
             }
 
             if (authType === 'trial') {
-                this.trialCount = this.getTrialCount();
-                const remaining = 2 - this.trialCount;
+                const used = this.getTrialCount();   // 生成成功后重新读取最新次数（可能已被后端更新，但此处以 localStorage 为准）
+                const remaining = 2 - used;
                 if (remaining <= 0) {
                     this.showNotification('⚠️ 免费试用次数已用完，下次需要购买授权码', 'warning');
                 } else {
